@@ -12,10 +12,7 @@ import (
 
 type (
 	SoundId uint32
-	VoiceId struct {
-		soundId SoundId
-		voiceId uint32
-	}
+	VoiceId C.td_voice_id
 )
 
 func Init() bool {
@@ -30,20 +27,28 @@ func LoadSound(path string, polyphony uint8, looping bool, rolloff float32) Soun
 	return SoundId(cSound.id)
 }
 
+func SoundIsLooping(sound SoundId) bool {
+	return bool(C.td_audio_sound_is_looped(C.td_sound_id{id: C.uint32_t(sound)}))
+}
+
 func PlaySound(sound SoundId) VoiceId {
-	return PlaySoundAttenuated(sound, 0.0, 0.0, 0.0)
+	return VoiceId(C.td_audio_play_sound(C.td_sound_id{id: C.uint32_t(sound)}, C.float(0), C.float(0), C.float(0), C.bool(false)))
 }
 
 func PlaySoundAttenuated(sound SoundId, x, y, z float32) VoiceId {
-	cVoice := C.td_audio_play_sound(C.td_sound_id{id: C.uint32_t(sound)}, C.float(x), C.float(y), C.float(z))
-	return VoiceId{
-		soundId: SoundId(cVoice.sound_id.id),
-		voiceId: uint32(cVoice.voice_id),
-	}
+	return VoiceId(C.td_audio_play_sound(C.td_sound_id{id: C.uint32_t(sound)}, C.float(x), C.float(y), C.float(z), C.bool(true)))
+}
+
+func SoundIsPlaying(voice VoiceId) bool {
+	return bool(C.td_audio_sound_is_playing(C.td_voice_id(voice)))
+}
+
+func SetSoundPosition(voice VoiceId, x, y, z float32) {
+	C.td_audio_set_sound_position(C.td_voice_id(voice), C.float(x), C.float(y), C.float(z))
 }
 
 func StopSound(voice VoiceId) {
-	C.td_audio_stop_sound(C.td_voice_id{sound_id: C.td_sound_id{id: C.uint32_t(voice.soundId)}, voice_id: C.uint32_t(voice.voiceId)})
+	C.td_audio_stop_sound(C.td_voice_id(voice))
 }
 
 func SetListenerOrientation(posX, posY, posZ, dirX, dirY, dirZ float32) {

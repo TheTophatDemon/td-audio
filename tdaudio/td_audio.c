@@ -58,6 +58,15 @@ static void teardown_sounds() {
     free(g_players.items);
 }
 
+static bool check_voice_id(td_voice_id voice) {
+    if (voice.sound_id.id == 0 || 
+        voice.sound_id.id >= g_players.length ||
+        voice.voice_id >= g_players.items[voice.sound_id.id].num_voices) {
+        return false;
+    }
+    return true;
+}
+
 td_sound_id td_audio_load_sound(const char *path, uint8_t polyphony, bool looping, float rolloff) {
     assert(path != NULL);
     assert(polyphony > 0);
@@ -74,9 +83,6 @@ td_sound_id td_audio_load_sound(const char *path, uint8_t polyphony, bool loopin
     for (v = 0; v < polyphony; ++v) {
         ma_sound *voice = &player.voices[v];
         ma_uint32 flags = MA_SOUND_FLAG_DECODE;
-        if (rolloff == 0.0f) {
-            flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
-        }
         ma_result result = ma_sound_init_from_file(&g_engine, path, flags, NULL, NULL, voice);
         if (result != MA_SUCCESS) {
             LOG_ERR("failed to load sound at %s, code %d", path, result);
@@ -93,6 +99,13 @@ fail:
     --g_players.length;
     free(player.voices);
     return (td_sound_id){0};
+}
+
+bool td_audio_sound_is_looped(td_sound_id sound) {
+    if (sound.id >= g_players.length) return false;
+    td_player *player = &g_players.items[sound.id];
+    if (player->num_voices == 0) return false;
+    return ma_sound_is_looping(&player->voices[0]);
 }
 
 bool td_audio_init() {
@@ -147,8 +160,8 @@ bool td_audio_init() {
 }
 
 /// Attempts to play the sound using one of the available voices. Returns a zeroed voice ID if sound was not played.
-/// X, Y, and Z are the spatial coordinates of the sound in world space. Leave them as 0 if the sound is not spatialized.
-td_voice_id td_audio_play_sound(td_sound_id sound_id, float x, float y, float z) {
+/// `x`, `y`, and `z` are the spatial coordinates of the sound in world space. If `attenuated` is false, then those parameters don't do anything.
+td_voice_id td_audio_play_sound(td_sound_id sound_id, float x, float y, float z, bool attenuated) {
     assert(sound_id.id < g_players.length);
 
     td_player *player = &g_players.items[sound_id.id];
@@ -179,7 +192,8 @@ td_voice_id td_audio_play_sound(td_sound_id sound_id, float x, float y, float z)
         ma_result result = ma_sound_seek_to_pcm_frame(chosen_voice, 0);
         if (result != MA_SUCCESS) LOG_ERR("failed to seek sound with id %d, code %d", sound_id.id, result);
 
-        if (ma_sound_is_spatialization_enabled(chosen_voice)) {
+        ma_sound_set_spatialization_enabled(chosen_voice, attenuated);
+        if (attenuated) {
             ma_sound_set_position(chosen_voice, x, y, z);
         }
 
@@ -194,13 +208,24 @@ td_voice_id td_audio_play_sound(td_sound_id sound_id, float x, float y, float z)
     return (td_voice_id) {0};
 }
 
-void td_audio_stop_sound(td_voice_id id) {
-    if (id.sound_id.id == 0) return;
-    assert(id.sound_id.id < g_players.length);
-    assert(id.voice_id < g_players.items[id.sound_id.id].num_voices);
-    td_player *player = &g_players.items[id.sound_id.id];
-    if (player == NULL) return;
-    ma_sound_stop(&player->voices[id.voice_id]);
+bool td_audio_sound_is_playing(td_voice_id voice) {
+    if (!check_voice_id(voice)) return false;
+    td_player *player = &g_players.items[voice.sound_id.id];
+    return (bool)ma_sound_is_playing(&player->voices[voice.voice_id]);
+}
+
+void td_audio_set_sound_position(td_voice_id voice, float x, float y, float z) {
+    if (!check_voice_id(voice)) return;
+    td_player *player = &g_players.items[voice.sound_id.id];
+    ma_sound *ma_player = &player->voices[voice.voice_id];
+    if (!ma_sound_is_spatialization_enabled(ma_player)) return;
+    ma_sound_set_position(ma_player, x, y, z);
+}
+
+void td_audio_stop_sound(td_voice_id voice) {
+    if (!check_voice_id(voice)) return;
+    td_player *player = &g_players.items[voice.sound_id.id];
+    ma_sound_stop(&player->voices[voice.voice_id]);
 }
 
 void td_audio_set_listener_orientation(float pos_x, float pos_y, float pos_z, float dir_x, float dir_y, float dir_z) {
