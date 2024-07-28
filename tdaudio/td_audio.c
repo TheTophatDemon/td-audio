@@ -35,9 +35,8 @@ typedef struct td_player_list {
 static ma_device g_device;
 static ma_resource_manager g_resource_manager;
 static ma_engine g_engine;
-//TODO: Add sound group for sfx and music
+static ma_sound_group g_sfx_group;
 static td_player_list g_players;
-//TODO: Add music player(s)
 
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
@@ -83,7 +82,7 @@ td_sound_id td_audio_load_sound(const char *path, uint8_t polyphony, bool loopin
     for (v = 0; v < polyphony; ++v) {
         ma_sound *voice = &player.voices[v];
         ma_uint32 flags = MA_SOUND_FLAG_DECODE;
-        ma_result result = ma_sound_init_from_file(&g_engine, path, flags, NULL, NULL, voice);
+        ma_result result = ma_sound_init_from_file(&g_engine, path, flags, &g_sfx_group, NULL, voice);
         if (result != MA_SUCCESS) {
             LOG_ERR("failed to load sound at %s, code %d", path, result);
             goto fail;
@@ -146,6 +145,12 @@ bool td_audio_init() {
             LOG_ERR("failed to initialize miniaudio engine, code %d", result);
             return false;
         }
+    }
+
+    // SFX sound group init
+    if ((result = ma_sound_group_init(&g_engine, 0, NULL, &g_sfx_group)) != MA_SUCCESS) {
+        LOG_ERR("failed to initialize sfx group, code %d", result);
+        return false;
     }
 
     // Start the device
@@ -231,6 +236,14 @@ void td_audio_stop_sound(td_voice_id voice) {
 void td_audio_set_listener_orientation(float pos_x, float pos_y, float pos_z, float dir_x, float dir_y, float dir_z) {
     ma_engine_listener_set_position(&g_engine, 0, pos_x, pos_y, pos_z);
     ma_engine_listener_set_direction(&g_engine, 0, dir_x, dir_y, dir_z);
+}
+
+void td_audio_set_sfx_volume(float new_volume) {
+    ma_sound_group_set_volume(&g_sfx_group, new_volume);
+}
+
+float td_audio_get_sfx_volume() {
+    return ma_sound_group_get_volume(&g_sfx_group);
 }
 
 void td_audio_teardown() {

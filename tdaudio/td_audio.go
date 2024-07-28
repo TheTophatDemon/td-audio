@@ -55,6 +55,14 @@ func SetListenerOrientation(posX, posY, posZ, dirX, dirY, dirZ float32) {
 	C.td_audio_set_listener_orientation(C.float(posX), C.float(posY), C.float(posZ), C.float(dirX), C.float(dirY), C.float(dirZ))
 }
 
+func SetSfxVolume(newVolume float32) {
+	C.td_audio_set_sfx_volume(C.float(newVolume))
+}
+
+func SfxVolume() float32 {
+	return float32(C.td_audio_get_sfx_volume())
+}
+
 func Teardown() {
 	C.td_audio_teardown()
 }

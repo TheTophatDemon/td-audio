@@ -8,6 +8,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/png"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -130,6 +132,13 @@ func (game *Game) Update() error {
 		tdaudio.PlaySoundAttenuated(game.sounds["wraith0.wav"], float32(ent.x), 0.0, float32(ent.y))
 	}
 
+	_, wheelDy := ebiten.Wheel()
+	if wheelDy > 0 {
+		tdaudio.SetSfxVolume(min(1.0, tdaudio.SfxVolume()+0.1))
+	} else if wheelDy < 0 {
+		tdaudio.SetSfxVolume(max(0.0, tdaudio.SfxVolume()-0.1))
+	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		// Choose a random loaded sound and play it unattenuated.
 		keys := make([]string, 0, len(game.sounds))
@@ -156,6 +165,8 @@ func (game *Game) Draw(screen *ebiten.Image) {
 		op.ColorScale.ScaleWithColor(ent.color)
 		screen.DrawImage(game.playerImg, op)
 	}
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("SFX Volume: %d%%", int(tdaudio.SfxVolume()*100.0)))
 }
 
 func main() {

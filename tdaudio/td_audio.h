@@ -24,6 +24,8 @@ bool td_audio_sound_is_playing(td_voice_id voice);
 void td_audio_set_sound_position(td_voice_id voice, float x, float y, float z);
 void td_audio_stop_sound(td_voice_id id);
 void td_audio_set_listener_orientation(float pos_x, float pos_y, float pos_z, float dir_x, float dir_y, float dir_z);
+void td_audio_set_sfx_volume(float new_volume);
+float td_audio_get_sfx_volume();
 void td_audio_teardown();
 
 #endif
